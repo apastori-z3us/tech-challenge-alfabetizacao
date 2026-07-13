@@ -1,0 +1,52 @@
+sources:
+  municipio:
+    description: "Diretorio oficial de municipios brasileiros"
+    table_id: "basedosdados.br_bd_diretorios_brasil.municipio"
+    ingestion_type: "batch"
+    enabled: true
+    key_columns:
+      - id_municipio
+
+  alfabetizacao_uf:
+    description: "Indicadores de alfabetizacao por unidade da federacao"
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    ingestion_type: "batch"
+    enabled: false
+    key_columns:
+      - ano
+      - sigla_uf
+
+  meta_brasil:
+    description: "Metas nacionais de alfabetizacao"
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    ingestion_type: "batch"
+    enabled: false
+    key_columns:
+      - ano
+
+  meta_uf:
+    description: "Metas de alfabetizacao por UF"
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    ingestion_type: "batch"
+    enabled: false
+    key_columns:
+      - ano
+      - sigla_uf
+
+  meta_municipio:
+    description: "Metas de alfabetizacao por municipio"
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    ingestion_type: "batch"
+    enabled: false
+    key_columns:
+      - ano
+      - id_municipio
+
+  alunos:
+    description: "Dados educacionais de alunos"
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    ingestion_type: "batch"
+    enabled: false
+    key_columns:
+      - ano
+      - id_aluno

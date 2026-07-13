@@ -1,0 +1,34 @@
+project:
+  name: "Pipeline Híbrido para Análise da Alfabetização no Brasil"
+  student_name: "Ana Beatriz Pastori dos Santos"
+  rm: "372884"
+  environment: "development"
+
+pipeline:
+  batch:
+    enabled: true
+    output_format: "parquet"
+
+  streaming:
+    enabled: true
+    mode: "local_redpanda"
+    microbatch_enabled: true
+
+layers:
+  bronze:
+    local_path: "data/bronze"
+    preserve_raw_data: true
+
+  silver:
+    local_path: "data/silver"
+
+  gold:
+    local_path: "data/gold"
+
+quality:
+  quarantine_path: "data/quarantine"
+  fail_on_critical_error: true
+
+logging:
+  level: "INFO"
+  audit_path: "data/audit"

@@ -1,0 +1,46 @@
+# Ambiente virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Variáveis e credenciais
+.env
+credentials/
+service-account*.json
+application_default_credentials.json
+
+# VS Code
+.vscode/
+
+# Dados gerados localmente
+data/bronze/**
+data/silver/**
+data/gold/**
+data/audit/**
+data/quarantine/**
+
+# Preservar estrutura das pastas
+!data/**/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Arquivos temporários
+*.tmp
+*.temp

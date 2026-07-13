@@ -1,0 +1,13 @@
+google-cloud-bigquery
+google-cloud-bigquery-storage
+pandas
+pyarrow
+db-dtypes
+python-dotenv
+PyYAML
+pydantic
+confluent-kafka
+tenacity
+pytest
+pytest-cov
+ruff
