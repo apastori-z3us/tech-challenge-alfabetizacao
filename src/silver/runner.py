@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.common.io_utils import read_parquet_dir
+from src.common.io_utils import read_latest_parquet
 from src.common.logger import configure_logger
 from src.common.settings import Settings
 from src.quality.rules import get_spec
@@ -26,6 +26,6 @@ def run_silver_from_bronze(
         )
         return None
 
-    bronze_df = read_parquet_dir(bronze_dir)
+    bronze_df = read_latest_parquet(bronze_dir)
     spec = get_spec(entity)
     return build_silver(settings, entity, bronze_df, spec, bq_loader=bq_loader)

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from src.batch.registry import enabled_sources, get_source, load_sources
-from src.batch.runner import reader_for, run_batch_source
+from src.batch.runner import run_batch_source
 from src.common.audit import PipelineRun, record_pipeline_run
 from src.common.logger import configure_logger
 from src.common.settings import Settings, load_settings
@@ -24,7 +24,12 @@ logger = configure_logger(name="cli")
 
 
 def _bigquery_client_or_none(settings: Settings):
-    """Tenta criar um cliente BigQuery; retorna None se indisponível."""
+    """Tenta criar um cliente BigQuery; retorna None se indisponível ou desativado."""
+    import os
+
+    if os.getenv("DISABLE_BIGQUERY") == "1":
+        logger.info("BigQuery desativado por DISABLE_BIGQUERY=1.")
+        return None
     try:
         from src.common.bigquery_client import create_bigquery_client
 
@@ -50,30 +55,42 @@ def cmd_validate_config(settings: Settings, _args) -> int:
     return 0
 
 
-def cmd_batch(settings: Settings, args) -> int:
+def _make_bronze_loader(client, settings: Settings):
+    """Cria um loader que carrega o DataFrame na Bronze BigQuery."""
+    from src.bronze.loader import load_dataframe_to_bigquery
+
+    def _load(dataframe, entity: str) -> int:
+        result = load_dataframe_to_bigquery(
+            client, settings, dataframe, entity, layer="bronze"
+        )
+        return result.records_loaded
+
+    return _load
+
+
+def cmd_batch(settings: Settings, args, reader_override=None) -> int:
     targets = (
         {args.source: get_source(settings, args.source)}
-        if args.source
+        if getattr(args, "source", None)
         else enabled_sources(settings)
     )
-    # Só tenta o BigQuery se houver alguma fonte não-derivada a processar.
-    needs_bq = any(s.ingestion_type != "derived" for s in targets.values())
-    client = _bigquery_client_or_none(settings) if needs_bq else None
+    client = None if reader_override is not None else _bigquery_client_or_none(settings)
 
     processed = 0
-    for name, source in targets.items():
-        if source.ingestion_type == "derived":
-            reader = reader_for(settings, source)
+    for name in targets:
+        if reader_override is not None:
+            reader, loader = reader_override, None
         elif client is not None:
             from src.batch.extractor import BigQueryReader
 
             reader = BigQueryReader(client)
+            loader = _make_bronze_loader(client, settings)
         else:
             logger.warning(
                 "Fonte '%s' requer BigQuery (indisponível) — ignorada.", name
             )
             continue
-        run_batch_source(settings, name, reader)
+        run_batch_source(settings, name, reader, bronze_loader=loader)
         processed += 1
     logger.info("Batch concluído: %s fonte(s) processada(s).", processed)
     return 0
@@ -89,12 +106,16 @@ def cmd_silver(settings: Settings, args) -> int:
 
 def _run_silver(settings: Settings, args, quality_only: bool) -> int:
     entities = [args.entity] if getattr(args, "entity", None) else list(SPEC_BUILDERS)
+    client = _bigquery_client_or_none(settings)
+    bq_loader = None
+    if client is not None and not quality_only:
+        bq_loader = _make_silver_loader(client, settings)
     any_done = False
     for entity in entities:
         if entity not in SPEC_BUILDERS:
             logger.warning("Sem regras para '%s' — ignorada.", entity)
             continue
-        result = run_silver_from_bronze(settings, entity)
+        result = run_silver_from_bronze(settings, entity, bq_loader=bq_loader)
         if result is not None:
             any_done = True
             logger.info(
@@ -109,9 +130,47 @@ def _run_silver(settings: Settings, args, quality_only: bool) -> int:
     return 0
 
 
+def _make_silver_loader(client, settings: Settings):
+    from src.bronze.loader import load_dataframe_to_bigquery
+
+    def _load(dataframe, entity: str) -> int:
+        result = load_dataframe_to_bigquery(
+            client, settings, dataframe, entity, layer="silver"
+        )
+        return result.records_loaded
+
+    return _load
+
+
+def _make_gold_loader(client, settings: Settings):
+    from src.bronze.loader import load_dataframe_to_bigquery
+
+    def _load(dataframe, table: str) -> int:
+        result = load_dataframe_to_bigquery(
+            client, settings, dataframe, table, layer="gold"
+        )
+        return result.records_loaded
+
+    return _load
+
+
 def cmd_gold(settings: Settings, _args) -> int:
-    outputs = build_gold_products(settings)
-    logger.info("Produtos Gold: %s", {k: v for k, v in outputs.items()})
+    client = _bigquery_client_or_none(settings)
+    gold_loader = _make_gold_loader(client, settings) if client is not None else None
+    outputs = build_gold_products(settings, gold_loader=gold_loader)
+    logger.info("Produtos Gold: %s", dict(outputs))
+    return 0
+
+
+def cmd_audit_sync(settings: Settings, _args) -> int:
+    client = _bigquery_client_or_none(settings)
+    if client is None:
+        logger.warning("BigQuery indisponível — auditoria mantida apenas local.")
+        return 0
+    from src.common.audit_bq import sync_audit_tables
+
+    loaded = sync_audit_tables(client, settings)
+    logger.info("Auditoria sincronizada no BigQuery: %s", loaded)
     return 0
 
 
@@ -127,6 +186,7 @@ def cmd_all(settings: Settings, args) -> int:
             pipeline_name="all", source="orchestrator", layer="all", status="SUCCESS"
         ),
     )
+    cmd_audit_sync(settings, args)
     logger.info("== Pipeline completo finalizado ==")
     return 0
 
@@ -168,6 +228,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("gold", help="Silver → produtos analíticos Gold.")
     sub.add_parser("all", help="Executa o pipeline completo.")
+    sub.add_parser("audit-sync", help="Sincroniza auditorias locais no BigQuery.")
 
     p_prod = sub.add_parser("stream-producer", help="Publica eventos no Redpanda.")
     p_prod.add_argument("--events", type=int, default=20)
@@ -187,6 +248,7 @@ _COMMANDS = {
     "silver": cmd_silver,
     "gold": cmd_gold,
     "all": cmd_all,
+    "audit-sync": cmd_audit_sync,
     "stream-producer": cmd_stream_producer,
     "stream-consumer": cmd_stream_consumer,
 }

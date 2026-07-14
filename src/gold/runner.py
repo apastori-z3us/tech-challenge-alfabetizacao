@@ -22,14 +22,16 @@ def _read_silver(settings: Settings, entity: str) -> pd.DataFrame:
     if not directory.exists():
         return pd.DataFrame()
     try:
-        from src.common.io_utils import read_parquet_dir
+        from src.common.io_utils import read_latest_parquet
 
-        return read_parquet_dir(directory)
+        return read_latest_parquet(directory)
     except FileNotFoundError:
         return pd.DataFrame()
 
 
-def _write_gold(settings: Settings, name: str, frame: pd.DataFrame) -> str | None:
+def _write_gold(
+    settings: Settings, name: str, frame: pd.DataFrame, gold_loader=None
+) -> str | None:
     if frame.empty:
         return None
     directory = partition_dir(
@@ -37,10 +39,13 @@ def _write_gold(settings: Settings, name: str, frame: pd.DataFrame) -> str | Non
     )
     path = directory / f"{name}.parquet"
     write_parquet(frame, path)
+    if gold_loader is not None:
+        loaded = gold_loader(frame, name)
+        return f"{path} | BQ={loaded} linhas"
     return str(path)
 
 
-def build_gold_products(settings: Settings) -> dict:
+def build_gold_products(settings: Settings, *, gold_loader=None) -> dict:
     """Constrói os produtos Gold com os dados Silver disponíveis."""
     logger = configure_logger(name="gold_runner", level=settings.log_level)
 
@@ -66,18 +71,22 @@ def build_gold_products(settings: Settings) -> dict:
     if not indicador.empty and not municipio.empty:
         p1 = indicador_municipio_ano(indicador, meta_municipio, municipio)
         outputs["indicador_municipio_ano"] = _write_gold(
-            settings, "indicador_municipio_ano", p1
+            settings, "indicador_municipio_ano", p1, gold_loader
         )
         outputs["meta_vs_resultado"] = _write_gold(
-            settings, "meta_vs_resultado", meta_vs_resultado(p1, meta_uf, meta_brasil)
+            settings, "meta_vs_resultado",
+            meta_vs_resultado(p1, meta_uf, meta_brasil), gold_loader
         )
         evo = evolucao_temporal(indicador)
-        outputs["evolucao_temporal"] = _write_gold(settings, "evolucao_temporal", evo)
+        outputs["evolucao_temporal"] = _write_gold(
+            settings, "evolucao_temporal", evo, gold_loader
+        )
         outputs["resumo_uf"] = _write_gold(
-            settings, "resumo_uf", resumo_uf(p1, meta_uf)
+            settings, "resumo_uf", resumo_uf(p1, meta_uf), gold_loader
         )
         outputs["ml_features_municipio"] = _write_gold(
-            settings, "ml_features_municipio", ml_features_municipio(p1, evo)
+            settings, "ml_features_municipio",
+            ml_features_municipio(p1, evo), gold_loader
         )
     else:
         logger.warning(

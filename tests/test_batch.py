@@ -7,7 +7,7 @@ import pandas as pd
 from src.batch.extractor import METADATA_COLUMNS, CallableReader, extract_to_bronze
 from src.batch.queries import build_query
 from src.batch.registry import enabled_sources, get_source, load_sources
-from src.batch.runner import derive_uf_from_municipio, reader_for, run_batch_source
+from src.batch.runner import run_batch_source
 from src.common.io_utils import read_parquet_dir
 
 
@@ -15,10 +15,11 @@ def test_registry_loads_and_filters_enabled(settings):
     sources = load_sources(settings)
     assert "municipio" in sources
     assert sources["municipio"].enabled is True
-    assert sources["meta_brasil"].enabled is False
+    # Todas as fontes obrigatórias foram validadas e habilitadas.
+    assert sources["meta_brasil"].enabled is True
     enabled = enabled_sources(settings)
-    assert "municipio" in enabled
-    assert "meta_brasil" not in enabled
+    assert {"municipio", "uf", "meta_brasil", "meta_uf", "meta_municipio",
+            "indicador_alfabetizacao", "aluno"}.issubset(set(enabled))
 
 
 def test_build_query_uses_versioned_sql_file(settings):
@@ -49,16 +50,14 @@ def test_extract_to_bronze_adds_metadata(settings):
     assert written["_schema_version"].eq("1.0").all()
 
 
-def test_derive_uf_returns_27_ufs(settings):
+def test_uf_source_is_real_bigquery(settings):
     source = get_source(settings, "uf")
-    df = derive_uf_from_municipio(settings, source)
-    assert len(df) == 27
-    assert set(df.columns) == {"codigo_uf", "sigla_uf", "nome", "regiao"}
-    assert df["sigla_uf"].is_unique
+    assert source.enabled is True
+    assert source.ingestion_type == "batch"
+    assert source.table_id == "basedosdados.br_bd_diretorios_brasil.uf"
 
 
-def test_run_batch_source_uf_derived(settings):
-    source = get_source(settings, "uf")
+def test_run_batch_source_uf_with_injected_reader(settings, fake_reader):
     loaded = {}
 
     def fake_loader(df: pd.DataFrame, entity: str) -> int:
@@ -66,7 +65,7 @@ def test_run_batch_source_uf_derived(settings):
         return len(df)
 
     result = run_batch_source(
-        settings, "uf", reader_for(settings, source), bronze_loader=fake_loader
+        settings, "uf", fake_reader, bronze_loader=fake_loader
     )
     assert result.records_read == 27
     assert result.bronze_loaded_count == 27

@@ -12,9 +12,9 @@ from src.cli import cmd_batch, cmd_gold, cmd_silver, cmd_validate_config
 pytestmark = pytest.mark.e2e
 
 
-def test_full_pipeline_uf(settings):
+def test_full_pipeline_uf(settings, fake_reader):
     assert cmd_validate_config(settings, argparse.Namespace()) == 0
-    assert cmd_batch(settings, argparse.Namespace(source="uf")) == 0
+    assert cmd_batch(settings, argparse.Namespace(source="uf"), fake_reader) == 0
     assert cmd_silver(settings, argparse.Namespace(entity="uf")) == 0
     assert cmd_gold(settings, argparse.Namespace()) == 0
 

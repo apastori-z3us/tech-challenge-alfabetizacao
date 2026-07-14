@@ -1,12 +1,10 @@
-# Catálogo de fontes do pipeline Batch.
+# Catálogo de fontes do pipeline Batch — TODAS validadas no BigQuery.
 #
-# IMPORTANTE (governança):
-# - Uma fonte só recebe `enabled: true` após validação real da sua existência.
-# - Fontes educacionais (metas/indicador/aluno) permanecem `enabled: false`
-#   porque o BigQuery está inacessível neste ambiente (ver docs/blockers.md e
-#   docs/source_limitations.md). Nomes de tabela NÃO foram inventados.
-# - `uf` é uma dimensão DERIVADA do diretório de municípios enriquecida com a
-#   referência oficial de UFs; não depende de uma tabela externa não validada.
+# Fontes educacionais reais: dataset público `basedosdados`.
+# Alfabetização: br_inep_avaliacao_alfabetizacao (INEP — Avaliação Nacional).
+# Diretórios: br_bd_diretorios_brasil (municipio, uf).
+# A extração usa arquivos SQL versionados em sql/extraction/<fonte>.sql com
+# renomeações explícitas para a nomenclatura canônica (ver docs/data_dictionary.md).
 
 sources:
   municipio:
@@ -25,10 +23,10 @@ sources:
       sigla_uf: {type: STRING, nullable: false}
 
   uf:
-    description: "Dimensão de UFs derivada do diretório de municípios + referência oficial."
-    table_id: "DERIVED:from_municipio"
+    description: "Diretório oficial de UFs (Base dos Dados). id_uf->codigo_uf, sigla->sigla_uf."
+    table_id: "basedosdados.br_bd_diretorios_brasil.uf"
     enabled: true
-    ingestion_type: derived
+    ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
     key_columns: [sigla_uf]
@@ -41,9 +39,9 @@ sources:
       regiao: {type: STRING, nullable: false}
 
   meta_brasil:
-    description: "Metas nacionais de alfabetização por ano (fonte a validar)."
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    enabled: false
+    description: "Meta nacional de alfabetização (INEP). valor_meta = meta 2026."
+    table_id: "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_brasil"
+    enabled: true
     ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
@@ -55,9 +53,9 @@ sources:
       valor_meta: {type: FLOAT, nullable: false}
 
   meta_uf:
-    description: "Metas de alfabetização por UF e ano (fonte a validar)."
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    enabled: false
+    description: "Meta de alfabetização por UF (INEP). valor_meta = meta 2026."
+    table_id: "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_uf"
+    enabled: true
     ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
@@ -70,9 +68,9 @@ sources:
       valor_meta: {type: FLOAT, nullable: false}
 
   meta_municipio:
-    description: "Metas de alfabetização por município e ano (fonte a validar)."
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    enabled: false
+    description: "Meta de alfabetização por município (INEP). valor_meta = meta 2026."
+    table_id: "basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_municipio"
+    enabled: true
     ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
@@ -85,36 +83,36 @@ sources:
       valor_meta: {type: FLOAT, nullable: false}
 
   indicador_alfabetizacao:
-    description: "Taxa/indicador de alfabetização por território e ano (fonte a validar)."
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    enabled: false
+    description: "Resultado de alfabetização por município/ano (INEP, 2o ano, rede Municipal)."
+    table_id: "basedosdados.br_inep_avaliacao_alfabetizacao.municipio"
+    enabled: true
     ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
     key_columns: [ano, id_municipio]
-    selected_columns: [ano, id_municipio, sigla_uf, taxa_alfabetizacao, rede, serie]
+    selected_columns: [ano, id_municipio, serie, rede, taxa_alfabetizacao]
     partition_columns: [ano]
     expected_schema:
       ano: {type: INTEGER, nullable: false}
       id_municipio: {type: STRING, nullable: false}
-      sigla_uf: {type: STRING, nullable: true}
-      taxa_alfabetizacao: {type: FLOAT, nullable: false}
-      rede: {type: STRING, nullable: true}
       serie: {type: STRING, nullable: true}
+      rede: {type: STRING, nullable: true}
+      taxa_alfabetizacao: {type: FLOAT, nullable: false}
 
   aluno:
-    description: "Microdados educacionais de alunos (fonte a validar; contém dados sensíveis)."
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    enabled: false
+    description: "Microdados de alunos (INEP) — amostra anonimizada; ver source_limitations.md."
+    table_id: "basedosdados.br_inep_avaliacao_alfabetizacao.alunos"
+    enabled: true
     ingestion_type: batch
     schema_version: "1.0"
     layer_targets: [bronze, silver]
     key_columns: [ano, id_aluno]
-    selected_columns: [ano, id_aluno, id_municipio, rede, serie]
+    selected_columns: [ano, id_municipio, id_aluno, rede, serie, alfabetizado]
     partition_columns: [ano]
     expected_schema:
       ano: {type: INTEGER, nullable: false}
-      id_aluno: {type: STRING, nullable: false}
       id_municipio: {type: STRING, nullable: true}
+      id_aluno: {type: STRING, nullable: false}
       rede: {type: STRING, nullable: true}
       serie: {type: STRING, nullable: true}
+      alfabetizado: {type: STRING, nullable: true}

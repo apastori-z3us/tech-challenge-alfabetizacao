@@ -39,6 +39,18 @@ def read_parquet_dir(directory: Path) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
+def read_latest_parquet(directory: Path) -> pd.DataFrame:
+    """Lê apenas o Parquet mais recente (snapshot idempotente).
+
+    O histórico permanece no diretório; a camada seguinte consome o último
+    snapshot, evitando duplicação em reexecuções.
+    """
+    files = sorted(directory.rglob("*.parquet"), key=lambda p: p.stat().st_mtime)
+    if not files:
+        raise FileNotFoundError(f"Nenhum Parquet encontrado em: {directory}")
+    return read_parquet(files[-1])
+
+
 def write_json(payload: dict, path: Path) -> Path:
     """Grava um dicionário como JSON legível (UTF-8)."""
     path.parent.mkdir(parents=True, exist_ok=True)

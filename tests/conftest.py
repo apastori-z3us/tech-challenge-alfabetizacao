@@ -16,6 +16,8 @@ os.environ.setdefault("BQ_DATASET_BRONZE", "tc_alfabetizacao_bronze")
 os.environ.setdefault("BQ_DATASET_SILVER", "tc_alfabetizacao_silver")
 os.environ.setdefault("BQ_DATASET_GOLD", "tc_alfabetizacao_gold")
 os.environ.setdefault("BQ_DATASET_AUDIT", "tc_alfabetizacao_audit")
+# Testes são herméticos: nunca tocam o BigQuery real.
+os.environ["DISABLE_BIGQUERY"] = "1"
 
 import dataclasses  # noqa: E402
 
@@ -39,6 +41,41 @@ def settings(tmp_path) -> Settings:
         audit_path=data_root / "audit",
         quarantine_path=data_root / "quarantine",
     )
+
+
+@pytest.fixture
+def fake_reader():
+    """CallableReader offline que devolve amostras por fonte (sem BigQuery)."""
+    from src.batch.extractor import CallableReader
+    from src.quality.reference import (
+        SIGLA_TO_CODIGO_UF,
+        UF_SIGLA_TO_NOME,
+        UF_TO_REGIAO,
+        UFS_VALIDAS,
+    )
+
+    def fetch(_settings, source):
+        if source.name == "uf":
+            siglas = sorted(UFS_VALIDAS)
+            return pd.DataFrame(
+                {
+                    "codigo_uf": [SIGLA_TO_CODIGO_UF[s] for s in siglas],
+                    "sigla_uf": siglas,
+                    "nome": [UF_SIGLA_TO_NOME[s] for s in siglas],
+                    "regiao": [UF_TO_REGIAO[s] for s in siglas],
+                }
+            )
+        if source.name == "municipio":
+            return pd.DataFrame(
+                {
+                    "id_municipio": ["3550308", "3304557"],
+                    "nome": ["São Paulo", "Rio de Janeiro"],
+                    "sigla_uf": ["SP", "RJ"],
+                }
+            )
+        raise KeyError(f"sem amostra para {source.name}")
+
+    return CallableReader(fetch)
 
 
 @pytest.fixture

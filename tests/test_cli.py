@@ -25,8 +25,8 @@ def test_validate_config(settings):
     assert cmd_validate_config(settings, argparse.Namespace()) == 0
 
 
-def test_batch_silver_gold_uf_offline(settings):
-    assert cmd_batch(settings, argparse.Namespace(source="uf")) == 0
+def test_batch_silver_gold_uf_offline(settings, fake_reader):
+    assert cmd_batch(settings, argparse.Namespace(source="uf"), fake_reader) == 0
     assert (settings.bronze_path / "batch" / "uf").exists()
 
     assert cmd_silver(settings, argparse.Namespace(entity="uf")) == 0
@@ -35,8 +35,8 @@ def test_batch_silver_gold_uf_offline(settings):
     assert cmd_gold(settings, argparse.Namespace()) == 0
 
 
-def test_monitoring_report_after_run(settings):
-    cmd_batch(settings, argparse.Namespace(source="uf"))
+def test_monitoring_report_after_run(settings, fake_reader):
+    cmd_batch(settings, argparse.Namespace(source="uf"), fake_reader)
     cmd_silver(settings, argparse.Namespace(entity="uf"))
     report = build_report(settings)
     assert report["total_pipeline_runs"] >= 1
