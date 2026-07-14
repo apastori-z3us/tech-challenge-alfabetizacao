@@ -74,6 +74,20 @@ def upper_text(series: pd.Series) -> pd.Series:
     return strip_text(series).str.upper()
 
 
+def hash_text(series: pd.Series) -> pd.Series:
+    """Anonimiza um identificador via SHA-256 (irreversível)."""
+    import hashlib
+
+    return series.astype("string").fillna("").map(
+        lambda value: hashlib.sha256(value.encode("utf-8")).hexdigest()
+    )
+
+
+def year_valid(series: pd.Series, minimum: int = 1990, maximum: int = 2100):
+    """True onde o valor é um ano plausível (numérico dentro do intervalo)."""
+    return numeric_between(series, minimum, maximum)
+
+
 # --------------------------------------------------------------------------- #
 # Especificação declarativa de qualidade por entidade                         #
 # --------------------------------------------------------------------------- #
