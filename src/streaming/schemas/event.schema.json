@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IndicadorAtualizadoEvent",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "event_id",
+    "event_type",
+    "codigo_municipio",
+    "sigla_uf",
+    "ano_referencia",
+    "taxa_alfabetizacao",
+    "event_time",
+    "source",
+    "schema_version"
+  ],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "enum": ["indicador_atualizado"]},
+    "codigo_municipio": {"type": "string", "pattern": "^[0-9]{7}$"},
+    "sigla_uf": {"type": "string", "pattern": "^[A-Z]{2}$"},
+    "ano_referencia": {"type": "integer", "minimum": 1990, "maximum": 2100},
+    "taxa_alfabetizacao": {"type": "number", "minimum": 0, "maximum": 100},
+    "event_time": {"type": "string", "format": "date-time"},
+    "source": {"type": "string"},
+    "schema_version": {"type": "string"}
+  }
+}

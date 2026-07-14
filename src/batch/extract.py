@@ -13,7 +13,6 @@ from google.cloud import bigquery
 from src.common.logger import configure_logger
 from src.common.settings import Settings
 
-
 SOURCE_TABLE = "basedosdados.br_bd_diretorios_brasil.municipio"
 
 

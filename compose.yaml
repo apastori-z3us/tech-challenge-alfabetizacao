@@ -1,0 +1,93 @@
+# Streaming local com Redpanda (compatível com Kafka). Nenhuma credencial
+# embutida. Portas documentadas. Volumes persistentes e healthchecks.
+name: tc-alfabetizacao
+
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    container_name: tc-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=1G
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:19092
+    ports:
+      - "19092:19092"  # Kafka API (host) — usada pelo produtor/consumidor local
+      - "9644:9644"    # Admin API
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    networks:
+      - tc-net
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    container_name: tc-redpanda-console
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    ports:
+      - "8080:8080"  # Console web (opcional)
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    networks:
+      - tc-net
+
+  producer:
+    build: .
+    image: tc-alfabetizacao-app
+    container_name: tc-producer
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-rising-reserve-352718}
+      BQ_DATASET_BRONZE: ${BQ_DATASET_BRONZE:-tc_alfabetizacao_bronze}
+      BQ_DATASET_SILVER: ${BQ_DATASET_SILVER:-tc_alfabetizacao_silver}
+      BQ_DATASET_GOLD: ${BQ_DATASET_GOLD:-tc_alfabetizacao_gold}
+      BQ_DATASET_AUDIT: ${BQ_DATASET_AUDIT:-tc_alfabetizacao_audit}
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-alfabetizacao-events}
+    command: ["stream-producer", "--events", "20", "--interval", "2"]
+    networks:
+      - tc-net
+    profiles: ["apps"]
+
+  consumer:
+    build: .
+    image: tc-alfabetizacao-app
+    container_name: tc-consumer
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-rising-reserve-352718}
+      BQ_DATASET_BRONZE: ${BQ_DATASET_BRONZE:-tc_alfabetizacao_bronze}
+      BQ_DATASET_SILVER: ${BQ_DATASET_SILVER:-tc_alfabetizacao_silver}
+      BQ_DATASET_GOLD: ${BQ_DATASET_GOLD:-tc_alfabetizacao_gold}
+      BQ_DATASET_AUDIT: ${BQ_DATASET_AUDIT:-tc_alfabetizacao_audit}
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-alfabetizacao-events}
+      KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-alfabetizacao-consumer}
+    command: ["stream-consumer", "--max-events", "20"]
+    volumes:
+      - ./data:/app/data
+    networks:
+      - tc-net
+    profiles: ["apps"]
+
+volumes:
+  redpanda-data:
+
+networks:
+  tc-net:
+    driver: bridge
