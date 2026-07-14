@@ -1,7 +1,21 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "-v"
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requer credenciais/serviços externos (BigQuery/Kafka); pulado sem eles",
+    "e2e: teste ponta a ponta local com amostra pequena",
+    "contracts: valida contratos de dados/configuração",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = ["tests/*", "src/__init__.py", "src/**/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
 
 [tool.ruff]
 line-length = 88
