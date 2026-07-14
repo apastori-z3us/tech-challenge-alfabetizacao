@@ -1,52 +1,120 @@
+# Catálogo de fontes do pipeline Batch.
+#
+# IMPORTANTE (governança):
+# - Uma fonte só recebe `enabled: true` após validação real da sua existência.
+# - Fontes educacionais (metas/indicador/aluno) permanecem `enabled: false`
+#   porque o BigQuery está inacessível neste ambiente (ver docs/blockers.md e
+#   docs/source_limitations.md). Nomes de tabela NÃO foram inventados.
+# - `uf` é uma dimensão DERIVADA do diretório de municípios enriquecida com a
+#   referência oficial de UFs; não depende de uma tabela externa não validada.
+
 sources:
   municipio:
-    description: "Diretorio oficial de municipios brasileiros"
+    description: "Diretório oficial de municípios brasileiros (Base dos Dados)."
     table_id: "basedosdados.br_bd_diretorios_brasil.municipio"
-    ingestion_type: "batch"
     enabled: true
-    key_columns:
-      - id_municipio
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [id_municipio]
+    selected_columns: [id_municipio, nome, sigla_uf]
+    partition_columns: [sigla_uf]
+    expected_schema:
+      id_municipio: {type: STRING, nullable: false}
+      nome: {type: STRING, nullable: false}
+      sigla_uf: {type: STRING, nullable: false}
 
-  alfabetizacao_uf:
-    description: "Indicadores de alfabetizacao por unidade da federacao"
-    table_id: "PREENCHER_APOS_VALIDACAO"
-    ingestion_type: "batch"
-    enabled: false
-    key_columns:
-      - ano
-      - sigla_uf
+  uf:
+    description: "Dimensão de UFs derivada do diretório de municípios + referência oficial."
+    table_id: "DERIVED:from_municipio"
+    enabled: true
+    ingestion_type: derived
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [sigla_uf]
+    selected_columns: [codigo_uf, sigla_uf, nome, regiao]
+    partition_columns: [regiao]
+    expected_schema:
+      codigo_uf: {type: STRING, nullable: false}
+      sigla_uf: {type: STRING, nullable: false}
+      nome: {type: STRING, nullable: false}
+      regiao: {type: STRING, nullable: false}
 
   meta_brasil:
-    description: "Metas nacionais de alfabetizacao"
+    description: "Metas nacionais de alfabetização por ano (fonte a validar)."
     table_id: "PREENCHER_APOS_VALIDACAO"
-    ingestion_type: "batch"
     enabled: false
-    key_columns:
-      - ano
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [ano]
+    selected_columns: [ano, valor_meta]
+    partition_columns: [ano]
+    expected_schema:
+      ano: {type: INTEGER, nullable: false}
+      valor_meta: {type: FLOAT, nullable: false}
 
   meta_uf:
-    description: "Metas de alfabetizacao por UF"
+    description: "Metas de alfabetização por UF e ano (fonte a validar)."
     table_id: "PREENCHER_APOS_VALIDACAO"
-    ingestion_type: "batch"
     enabled: false
-    key_columns:
-      - ano
-      - sigla_uf
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [ano, sigla_uf]
+    selected_columns: [ano, sigla_uf, valor_meta]
+    partition_columns: [ano]
+    expected_schema:
+      ano: {type: INTEGER, nullable: false}
+      sigla_uf: {type: STRING, nullable: false}
+      valor_meta: {type: FLOAT, nullable: false}
 
   meta_municipio:
-    description: "Metas de alfabetizacao por municipio"
+    description: "Metas de alfabetização por município e ano (fonte a validar)."
     table_id: "PREENCHER_APOS_VALIDACAO"
-    ingestion_type: "batch"
     enabled: false
-    key_columns:
-      - ano
-      - id_municipio
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [ano, id_municipio]
+    selected_columns: [ano, id_municipio, valor_meta]
+    partition_columns: [ano]
+    expected_schema:
+      ano: {type: INTEGER, nullable: false}
+      id_municipio: {type: STRING, nullable: false}
+      valor_meta: {type: FLOAT, nullable: false}
 
-  alunos:
-    description: "Dados educacionais de alunos"
+  indicador_alfabetizacao:
+    description: "Taxa/indicador de alfabetização por território e ano (fonte a validar)."
     table_id: "PREENCHER_APOS_VALIDACAO"
-    ingestion_type: "batch"
     enabled: false
-    key_columns:
-      - ano
-      - id_aluno
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [ano, id_municipio]
+    selected_columns: [ano, id_municipio, sigla_uf, taxa_alfabetizacao, rede, serie]
+    partition_columns: [ano]
+    expected_schema:
+      ano: {type: INTEGER, nullable: false}
+      id_municipio: {type: STRING, nullable: false}
+      sigla_uf: {type: STRING, nullable: true}
+      taxa_alfabetizacao: {type: FLOAT, nullable: false}
+      rede: {type: STRING, nullable: true}
+      serie: {type: STRING, nullable: true}
+
+  aluno:
+    description: "Microdados educacionais de alunos (fonte a validar; contém dados sensíveis)."
+    table_id: "PREENCHER_APOS_VALIDACAO"
+    enabled: false
+    ingestion_type: batch
+    schema_version: "1.0"
+    layer_targets: [bronze, silver]
+    key_columns: [ano, id_aluno]
+    selected_columns: [ano, id_aluno, id_municipio, rede, serie]
+    partition_columns: [ano]
+    expected_schema:
+      ano: {type: INTEGER, nullable: false}
+      id_aluno: {type: STRING, nullable: false}
+      id_municipio: {type: STRING, nullable: true}
+      rede: {type: STRING, nullable: true}
+      serie: {type: STRING, nullable: true}

@@ -18,6 +18,45 @@ class BigQueryLoadResult:
     job_id: str
 
 
+def load_dataframe_to_bigquery(
+    client: bigquery.Client,
+    settings: Settings,
+    dataframe: pd.DataFrame,
+    table: str,
+    layer: str = "bronze",
+) -> BigQueryLoadResult:
+    """Carga genérica de um DataFrame em uma tabela de uma camada.
+
+    O schema é inferido pelo BigQuery a partir do DataFrame. Idempotente via
+    `WRITE_TRUNCATE` (snapshot atual); o histórico permanece em Parquet local.
+    """
+    logger = configure_logger(name=f"{layer}_loader", level=settings.log_level)
+    table_id = settings.table_ref(layer, table)
+
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+        create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
+    )
+    load_job = client.load_table_from_dataframe(
+        dataframe=dataframe,
+        destination=table_id,
+        job_config=job_config,
+        location=settings.bigquery_location,
+    )
+    load_job.result()
+    destination_table = client.get_table(table_id)
+    logger.info(
+        "Carga concluída em %s: %s registro(s).",
+        table_id,
+        destination_table.num_rows,
+    )
+    return BigQueryLoadResult(
+        table_id=table_id,
+        records_loaded=destination_table.num_rows,
+        job_id=load_job.job_id,
+    )
+
+
 def load_municipios_to_bigquery(
     client: bigquery.Client,
     settings: Settings,
