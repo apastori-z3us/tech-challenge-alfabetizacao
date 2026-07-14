@@ -183,7 +183,7 @@ Copy-Item .env.example .env   # ajuste as variáveis
 
 ```powershell
 python -m src.cli validate-config
-python -m src.cli batch --source uf     # funciona offline (derivada)
+python -m src.cli batch --source uf     # fonte real: br_bd_diretorios_brasil.uf
 python -m src.cli silver --entity uf
 python -m src.cli gold
 python -m src.cli all

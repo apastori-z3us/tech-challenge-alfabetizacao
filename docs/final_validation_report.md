@@ -1,7 +1,9 @@
 # Relatório de Validação Final
 
 - **Data:** 2026-07-14
-- **Branch:** `feature/validacao-fontes-reais` (a mesclar em `develop`/`main`)
+- **Branch integrada:** `main` (também em `develop`)
+- **Commit final integrado:** `f56dd38`
+- **Ajustes finais de documentação/CI:** branch `docs/validacao-final-ci`
 - **Ambiente:** Windows 11, PowerShell, Python 3.12.10, venv do projeto
 - **Docker:** Desktop 29.6.1 (engine linux) — streaming executado ao vivo
 - **BigQuery:** projeto `rising-reserve-352718` (Sandbox), 4 datasets acessíveis
@@ -77,8 +79,10 @@ Sessão 2 (borda): 6 / 2 válidos / 3 inválidos / 1 duplicado / 4 na quarentena
 ## CI (GitHub Actions)
 
 Workflow `CI` (`.github/workflows/ci.yml`): Ruff + pytest sem BigQuery +
-cobertura + validação YAML + `docker compose config`. Status confirmado após
-push/PR (ver seção de PRs no `docs/pull_request_guide.md`).
+cobertura + validação YAML + `docker compose config`. As mesmas verificações
+foram executadas **localmente** com sucesso (ver tabela acima). O status na
+nuvem **ainda não foi confirmado** na aba *Actions* do GitHub — pendente de
+verificação após a abertura dos PRs (ver `docs/pull_request_guide.md`).
 
 ## Anonimização / LGPD
 
@@ -89,9 +93,12 @@ pessoal na Gold.
 
 - `aluno` como amostra anonimizada (L2); `resumo_uf` 25 UFs (L3); 242 sem meta
   (L4). Ver `docs/source_limitations.md`.
-- **Pendências humanas:** revisar/mesclar PRs; gravar e publicar o vídeo.
+- **Pendências humanas:** abrir os PRs finais (ainda não criados); confirmar o
+  CI verde na aba *Actions*; gravar e publicar o vídeo.
 
 ## Status
 
-**PRONTO PARA ENTREGA** (execução real validada em nuvem e streaming ao vivo;
-resta a gravação do vídeo e a mesclagem dos PRs).
+**PRONTO PARA ENTREGA** no que depende de execução técnica: pipeline real
+validado em nuvem (Bronze/Silver/Gold/Audit no BigQuery) e streaming ao vivo,
+já integrados na `main`. Pendências humanas: abrir/mesclar os PRs finais,
+confirmar o CI na aba *Actions* e gravar o vídeo.

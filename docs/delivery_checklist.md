@@ -28,6 +28,7 @@
 - [x] nenhuma credencial no Git
 - [x] nenhum dado gerado no Git
 - [x] histórico Git preservado (sem force push)
-- [ ] Pull Requests revisados e mesclados (ação humana)
-- [ ] CI verde confirmado no PR (após push)
+- [ ] Pull Requests abertos e mesclados — `docs/validacao-final-ci` → `main` e
+      `docs/video-entrega-final` → `main` (ação humana; ainda não criados)
+- [ ] CI verde confirmado na aba *Actions* do GitHub (evidência real pendente)
 - [ ] vídeo executivo gravado e publicado (ação humana)
