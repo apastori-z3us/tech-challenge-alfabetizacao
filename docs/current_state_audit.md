@@ -1,4 +1,19 @@
-# Auditoria do Estado Atual — Fase 0
+# Auditoria do Estado Atual
+
+## Atualização — 2026-07-14 (finalização real)
+
+- **Bloqueios resolvidos:** BigQuery (CA da inspeção TLS Norton) e Docker
+  (Desktop iniciado). Ver `docs/blockers.md`.
+- **Fontes reais validadas e habilitadas:** INEP `br_inep_avaliacao_alfabetizacao`
+  (metas, indicador, alunos) + `br_bd_diretorios_brasil` (municipio, uf).
+- **Materializado no BigQuery:** Bronze (7), Silver (7), Gold (5), Audit (2).
+- **Streaming executado ao vivo** (Redpanda) com quarentena e deduplicação.
+- **Testes:** 43 unitários + 2 integração verdes; cobertura 70%; Ruff limpo.
+- Detalhes: `docs/final_validation_report.md` e os `*_execution_evidence.md`.
+
+---
+
+# Auditoria do Estado Atual — Fase 0 (histórico)
 
 **Data:** 2026-07-13
 **Aluna:** Ana Beatriz Pastori dos Santos — RM 372884

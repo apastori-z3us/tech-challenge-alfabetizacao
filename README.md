@@ -33,24 +33,26 @@ adequado de Git, testes e CI.
 Ingestão Batch (Base dos Dados) + Streaming local (Redpanda) → Bronze → Silver
 (qualidade/quarentena) → Integração → Gold (produtos analíticos) → Auditoria.
 
-## 5. Fontes
+## 5. Fontes (todas reais e validadas no BigQuery)
 
 | Entidade | Fonte | Estado |
 | --- | --- | --- |
 | Município | `basedosdados.br_bd_diretorios_brasil.municipio` | ✅ Validada |
-| UF | Derivada de município + referência oficial | ✅ Derivada |
-| Metas (Brasil/UF/Município), Indicador, Aluno | a validar | ⛔ Pendente (BQ indisponível) |
+| UF | `basedosdados.br_bd_diretorios_brasil.uf` | ✅ Validada |
+| Meta Brasil/UF/Município | `basedosdados.br_inep_avaliacao_alfabetizacao.meta_alfabetizacao_*` | ✅ Validada |
+| Indicador | `basedosdados.br_inep_avaliacao_alfabetizacao.municipio` | ✅ Validada |
+| Aluno | `basedosdados.br_inep_avaliacao_alfabetizacao.alunos` | ✅ Validada (amostra anonimizada) |
 
-Detalhes em [docs/source_inventory.md](docs/source_inventory.md) e
+Fonte educacional: **INEP — Avaliação Nacional de Alfabetização**. Detalhes em
+[docs/source_inventory.md](docs/source_inventory.md) e
 [docs/data_dictionary.md](docs/data_dictionary.md).
 
 ## 6. Limitações
 
-Neste ambiente o **BigQuery está inacessível** (auth/SSL) e o **Docker daemon**
-não estava em execução; por isso a descoberta de fontes educacionais e a
-execução em nuvem/streaming ao vivo ficam pendentes de ação humana. Nada foi
-inventado. Ver [docs/blockers.md](docs/blockers.md) e
-[docs/source_limitations.md](docs/source_limitations.md).
+De natureza dos dados (bloqueios de ambiente já resolvidos):
+`aluno` ingerido como **amostra anonimizada** (real tem ~3,9M linhas);
+`valor_meta` = meta 2026; `resumo_uf` cobre 25 UFs (sem rede municipal no DF).
+Nada foi inventado. Ver [docs/source_limitations.md](docs/source_limitations.md).
 
 ## 7. Arquitetura
 
@@ -143,8 +145,9 @@ Gold. Ver [docs/security_and_governance.md](docs/security_and_governance.md).
 ## 20. Trade-offs
 
 - **Snapshot Bronze no Sandbox** (histórico em Parquet) — economia e simplicidade.
-- **UF derivada** em vez de tabela não validada — determinismo e honestidade.
-- **Leitura injetável** — permite execução/testes offline sem quebrar o fluxo BQ.
+- **`valor_meta` = meta 2026** (metas em formato largo) — decisão documentada.
+- **`aluno` como amostra anonimizada** — privacidade + FinOps, fonte real preservada.
+- **Leitura injetável** — permite testes herméticos sem quebrar o fluxo BigQuery.
 
 ## 21. Aplicações em IA
 
@@ -220,14 +223,22 @@ GROUP BY sigla_uf ORDER BY media DESC;
 
 ## 30. Resultados
 
-Offline, o fluxo da entidade **UF** roda ponta a ponta (27 registros:
-batch → silver → gold/auditoria). Os demais dependem do desbloqueio do BigQuery.
-Ver [docs/final_validation_report.md](docs/final_validation_report.md).
+Pipeline executado de ponta a ponta **no BigQuery**: Bronze (7 tabelas), Silver
+(7 tabelas), Gold (5 produtos) e Auditoria. Destaques (2023–2024): 10.896
+resultados município/ano; `status_meta` → NAO_ATINGIDA 7.734, ATINGIDA 2.920,
+SEM_META 242; melhor média por UF: **CE 90,14%**. Streaming ao vivo: 20 eventos
+válidos + casos de borda (inválidos/duplicados) para quarentena. Evidências em
+[docs/batch_execution_evidence.md](docs/batch_execution_evidence.md),
+[docs/silver_quality_evidence.md](docs/silver_quality_evidence.md),
+[docs/gold_execution_evidence.md](docs/gold_execution_evidence.md),
+[docs/streaming_execution_evidence.md](docs/streaming_execution_evidence.md) e
+[docs/final_validation_report.md](docs/final_validation_report.md).
 
 ## 31. Problemas conhecidos
 
-BigQuery inacessível (auth/SSL) e Docker daemon parado neste ambiente — ambos
-com ação humana documentada em [docs/blockers.md](docs/blockers.md).
+Bloqueios de ambiente **resolvidos** (BigQuery: CA da inspeção TLS Norton; Docker:
+Desktop iniciado). Limitações de dados documentadas em
+[docs/source_limitations.md](docs/source_limitations.md).
 
 ## 32. Próximos passos
 

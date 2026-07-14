@@ -3,6 +3,18 @@
 Nomenclatura padronizada usada nas camadas Silver e Gold. Renomeações em relação
 às fontes são registradas aqui (nenhuma renomeação arbitrária sem registro).
 
+## Renomeações reais (fonte → canônico)
+
+| Fonte (real) | Coluna original | Coluna canônica |
+| --- | --- | --- |
+| br_bd_diretorios_brasil.uf | `id_uf` | `codigo_uf` |
+| br_bd_diretorios_brasil.uf | `sigla` | `sigla_uf` |
+| meta_alfabetizacao_* | `meta_alfabetizacao_2026` | `valor_meta` |
+
+**Decisão:** `valor_meta` = `meta_alfabetizacao_2026` (meta projetada para 2026,
+ano de referência do desafio). Os SQLs versionados em `sql/extraction/` aplicam
+as renomeações explicitamente.
+
 ## Nomes canônicos
 
 | Coluna | Tipo | Descrição |

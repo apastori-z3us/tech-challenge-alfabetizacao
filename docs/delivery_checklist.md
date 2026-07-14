@@ -1,30 +1,33 @@
 # Checklist de Entrega
 
-Legenda: ✅ concluído · ⚙️ implementado, execução ao vivo depende de ação humana.
-
-- [x] Batch funcional (framework configurável; UF roda offline; municípios via BQ)
-- [⚙️] Streaming funcional (lógica e testes ok; execução ao vivo requer Docker)
-- [x] Bronze funcional (Parquet + metadados; carga BQ implementada)
-- [x] Silver funcional (qualidade + padronização + invariantes)
-- [x] Gold funcional (5 produtos analíticos, testados)
-- [x] Qualidade funcional (motor declarativo reutilizável)
-- [x] Quarentena funcional (inválidos preservados)
-- [x] Auditoria funcional (JSON + JSONL + tabelas BQ)
-- [x] Monitoramento documentado (relatório + docs/monitoring.md)
-- [x] FinOps documentado (docs/finops.md)
-- [x] Segurança documentada (docs/security_and_governance.md)
-- [x] Testes passando (40 verdes; 2 integração pulados por design)
+- [x] BigQuery autenticado (TLS Norton resolvido)
+- [x] datasets acessíveis (4)
+- [x] fontes obrigatórias validadas (INEP + diretórios) — sem placeholders
+- [x] config/sources.yaml sem `PREENCHER_APOS_VALIDACAO`
+- [x] Batch executado (7 fontes)
+- [x] Bronze materializada (Parquet + BigQuery)
+- [x] Silver materializada (7 tabelas)
+- [x] Gold materializada com dados reais compatíveis (5 produtos)
+- [x] qualidade executada (0 inválidos; invariantes OK)
+- [x] quarentena validada (streaming ao vivo)
+- [x] auditoria validada (pipeline_runs + quality_results no BQ)
+- [x] relacionamentos validados (0 órfãos, 100% match, 242 sem meta)
+- [x] Streaming executado ao vivo (Redpanda)
+- [x] microbatch criado (2 arquivos, 22 eventos)
+- [x] evento inválido testado (quarentena)
+- [x] evento duplicado testado (deduplicação)
+- [x] testes unitários aprovados (43)
+- [x] testes de integração aprovados (2, BigQuery)
+- [x] cobertura gerada (70%)
+- [x] Ruff aprovado
+- [x] Docker Compose aprovado (config + execução)
 - [x] CI configurado (.github/workflows/ci.yml)
-- [x] Docker configurado (Dockerfile + compose.yaml válidos)
-- [x] README completo (33 seções + diagrama)
-- [x] Diagrama completo (Mermaid)
-- [x] Fontes documentadas (source_inventory / limitations)
-- [x] Dicionário completo (data_dictionary.md)
-- [x] Trade-offs documentados (README §20)
-- [x] Aplicação em IA documentada (ai_applications.md)
-- [x] Roteiro do vídeo completo (video_script.md + demo_checklist)
-- [x] Nome e RM corretos (Ana Beatriz Pastori dos Santos — RM 372884)
-- [x] Sem credenciais no Git (.env e chaves ignorados)
-- [x] Sem dados gerados no Git (data/ ignorado)
-- [x] Histórico Git preservado (sem force push; develop por fast-forward)
-- [x] Branches e PRs preparados (docs/pull_request_guide.md)
+- [x] README atualizado
+- [x] relatório final atualizado
+- [x] roteiro do vídeo atualizado
+- [x] nenhuma credencial no Git
+- [x] nenhum dado gerado no Git
+- [x] histórico Git preservado (sem force push)
+- [ ] Pull Requests revisados e mesclados (ação humana)
+- [ ] CI verde confirmado no PR (após push)
+- [ ] vídeo executivo gravado e publicado (ação humana)

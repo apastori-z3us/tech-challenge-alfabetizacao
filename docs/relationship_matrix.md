@@ -13,6 +13,20 @@ granularidade e período são compatíveis (`src/gold/integration.py`).
 | indicador | meta_municipio | `ano`+`id_municipio` | 1:1 (lógico) | município/ano | anual | Só quando anos coincidem |
 | aluno | municipio | `id_municipio` | N:1 | aluno/ano | anual | Sem chave válida ⇒ **não** relacionar |
 
+## Resultados reais da integração (2026-07-14)
+
+Execução sobre a Silver real (município 5.571, uf 27, indicador 10.896,
+meta_municipio 10.704):
+
+```text
+municipios_orfaos: 0            municipio_uf_match_pct: 100.0
+metas_sem_municipio: 0         resultados_sem_meta: 242
+anos_incompativeis: []         municipio_chaves_duplicadas: 0
+```
+
+Join indicador × meta = 1:1 lógico (`ano`,`id_municipio`): entrada e saída =
+10.896 (sem multiplicação de linhas).
+
 ## Validações executadas
 
 - Município pertence a uma UF válida (órfãos → `municipios_orfaos`).

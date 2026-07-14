@@ -1,78 +1,52 @@
 # Bloqueios e Limitações de Ambiente
 
-Este documento registra, de forma transparente, os bloqueios encontrados durante
-a execução do Tech Challenge e como o projeto os contornou **sem inventar
-resultados**.
+Registro transparente dos bloqueios encontrados e como foram **resolvidos**.
 
-## B1 — BigQuery inacessível (autenticação)
+## B1 — BigQuery inacessível (TLS) — ✅ RESOLVIDO
 
-**Sintoma**
+**Sintoma:** `bq ls` e o cliente Python falhavam com
+`[SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate` ao
+renovar tokens em `oauth2.googleapis.com`.
 
-```text
-$ bq ls
-ERROR: (bq) There was a problem refreshing your current auth tokens:
-[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed:
-unable to get local issuer certificate
-Please run: gcloud auth login
-```
+**Causa (investigada):** a máquina executa **Norton AntiVirus "Web/Mail Shield"**,
+que faz **inspeção TLS** e reassina o tráfego HTTPS com a CA
+`CN=Norton Web/Mail Shield Root`. O Windows confia nessa raiz (por isso o
+navegador e o `git` funcionam), mas Python/gcloud usam o bundle do `certifi`,
+que **não** inclui a raiz Norton → falha de verificação.
 
-**Causa provável:** token ADC expirado e/ou inspeção TLS corporativa que impede a
-validação do certificado de `oauth2.googleapis.com`.
+**Solução aplicada (segura, sem desabilitar verificação):**
+1. Exportadas as raízes confiáveis do Windows (`Cert:\LocalMachine\Root` +
+   `CurrentUser\Root`) para um PEM.
+2. Combinadas com o `certifi` em `C:\Users\Z3USAI\corp_ca_bundle.pem`.
+3. Apontado o gcloud (`gcloud config set core/custom_ca_certs_file ...`) e as
+   variáveis `REQUESTS_CA_BUNDLE`/`SSL_CERT_FILE`/`GRPC_DEFAULT_SSL_ROOTS_FILE_PATH`
+   (no `.env`, fora do Git) para esse bundle.
 
-**Impacto:** neste ambiente **não foi possível**:
-- executar `bq ls` / `bq show` para descoberta de fontes;
-- rodar consultas reais na Base dos Dados;
-- carregar tabelas no BigQuery Sandbox;
-- executar `python -m src.main` até o fim (a etapa de conexão BQ falha).
+**Resultado:** `bq ls`, consultas e o cliente Python passaram a funcionar; os 4
+datasets ficaram acessíveis e todo o pipeline foi materializado no BigQuery.
 
-**Mitigação aplicada (sem fabricar dados):**
-- Toda leitura de dados foi tornada **injetável** (`DataReader`). Em produção usa
-  BigQuery; em testes/execução offline usa Parquet local ou fixtures pequenas.
-- O núcleo de qualidade, Silver, Gold e Streaming é **100% testável offline**.
-- Nomes de tabelas de fontes educacionais **não foram inventados**: permanecem
-  `enabled: false` em `config/sources.yaml` até validação real. Ver
-  `docs/source_limitations.md`.
+> Observação: o bundle e as variáveis são **específicos desta máquina** e ficam
+> fora do repositório. Em outro ambiente, autenticar normalmente
+> (`gcloud auth login` / `application-default login`).
 
-**Ação humana necessária para desbloquear:**
-```powershell
-gcloud auth login
-gcloud config set project rising-reserve-352718
-gcloud auth application-default login
-# Se houver inspeção TLS corporativa, apontar o CA bundle:
-#   setx GOOGLE_API_USE_CLIENT_CERTIFICATE false
-#   $env:REQUESTS_CA_BUNDLE / $env:SSL_CERT_FILE = <caminho do CA corporativo>
-bq ls
-```
+## B2 — Docker daemon indisponível — ✅ RESOLVIDO
 
-## B2 — Docker daemon indisponível
+**Sintoma:** `docker ps` falhava com
+`failed to connect to the docker API ... dockerDesktopLinuxEngine`.
 
-**Sintoma**
+**Causa:** Docker Desktop estava fechado.
 
-```text
-failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine;
-check if the path is correct and if the daemon is running
-```
+**Solução:** iniciado o Docker Desktop; após o engine subir, `docker info`
+respondeu e `docker compose up -d redpanda` funcionou. O streaming foi executado
+ao vivo (ver `docs/streaming_execution_evidence.md`) e o broker encerrado com
+`docker compose down`.
 
-**Impacto:** não foi possível subir Redpanda nem executar `docker compose up`.
+## Limitações remanescentes (documentadas)
 
-**Mitigação aplicada:**
-- `Dockerfile` e `compose.yaml` implementados e validáveis via `docker compose config`.
-- Lógica de streaming (validação de schema, deduplicação, microbatch, quarentena)
-  implementada de forma desacoplada do broker e coberta por testes que **não
-  exigem** Kafka.
-
-**Ação humana necessária:** iniciar o Docker Desktop e executar:
-```powershell
-docker compose up -d redpanda
-python -m src.cli stream-producer --events 20 --interval 2
-python -m src.cli stream-consumer
-docker compose down
-```
-
-## Princípios seguidos diante dos bloqueios
-
-1. Investigar e registrar o erro real (acima).
-2. Preservar o trabalho já existente (fluxo Batch de municípios intacto).
-3. Oferecer alternativa compatível (execução offline injetável).
-4. **Não** inventar nomes de fontes, contagens ou resultados de execução.
-5. **Não** esconder a limitação — ela está no README e nos relatórios finais.
+- **aluno:** a fonte real tem ~3,9 milhões de linhas. Foi ingerida uma **amostra
+  anonimizada** (ano 2024, `LIMIT 100000`) para demonstrar o fluxo de privacidade
+  sem custo/tempo excessivo. Basta remover o `LIMIT` em `sql/extraction/aluno.sql`
+  para ingestão integral. Ver `docs/source_limitations.md`.
+- **valor_meta:** as metas do INEP vêm em formato "largo" (colunas por ano-alvo);
+  adota-se `meta_alfabetizacao_2026` como `valor_meta` (ano de referência do
+  desafio). Decisão documentada em `docs/data_dictionary.md`.

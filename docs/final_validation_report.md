@@ -1,67 +1,97 @@
 # Relatório de Validação Final
 
-- **Data:** 2026-07-13
-- **Commit base da validação:** `565b8ea` (branch `docs/final-documentation`)
+- **Data:** 2026-07-14
+- **Branch:** `feature/validacao-fontes-reais` (a mesclar em `develop`/`main`)
 - **Ambiente:** Windows 11, PowerShell, Python 3.12.10, venv do projeto
+- **Docker:** Desktop 29.6.1 (engine linux) — streaming executado ao vivo
+- **BigQuery:** projeto `rising-reserve-352718` (Sandbox), 4 datasets acessíveis
 - **Aluna:** Ana Beatriz Pastori dos Santos — RM 372884
+
+## Diagnóstico dos bloqueios (resolvidos)
+
+- **BigQuery (TLS):** inspeção do **Norton Web/Mail Shield** reassinava o HTTPS;
+  o `certifi` não confiava na raiz Norton. Resolvido com bundle combinado
+  (certifi + raízes do Windows) apontado por `custom_ca_certs_file` e variáveis
+  `*_CA_BUNDLE` no `.env`. **Sem** desabilitar verificação.
+- **Docker:** Desktop estava fechado; iniciado e validado.
 
 ## Comandos executados e resultados
 
 | Comando | Resultado |
 | --- | --- |
+| `bq ls` + 4 `bq ls tc_alfabetizacao_*` | ✅ 4 datasets, tabelas materializadas |
+| `python -m src.cli batch` | ✅ 7 fontes → Bronze (Parquet + BQ) |
+| `python -m src.cli silver` | ✅ 7 entidades → Silver (BQ) |
+| `python -m src.cli gold` | ✅ 5 produtos → Gold (BQ) |
+| `python -m src.cli all` | ✅ EXIT 0 (pipeline completo) |
+| `python -m src.cli audit-sync` | ✅ pipeline_runs + quality_results no BQ |
+| `docker compose up -d redpanda` + stream | ✅ 20 válidos + casos de borda |
 | `python -m ruff check .` | ✅ All checks passed |
-| `python -m pytest -m "not integration"` | ✅ 40 passed, 2 deselected |
-| `python -m pytest --cov=src` | ✅ Cobertura total **70%** (branch) |
-| `python -m src.cli validate-config` | ✅ Configuração válida |
-| `python -m src.cli batch --source uf` | ✅ 27 registros → Bronze Parquet |
-| `python -m src.cli silver --entity uf` | ✅ 27 válidos, 0 inválidos |
-| `python -m src.cli gold` | ✅ Executa; indicador BQ-gated (aviso) |
-| `docker compose config --quiet` | ✅ Válido (daemon não necessário) |
-| `python -m src.main` | ⚠️ Para na conexão BigQuery (bloqueio B1) |
-| `bq ls ...` | ⛔ Bloqueado (auth/SSL — B1) |
-| `docker compose up -d redpanda` | ⛔ Bloqueado (daemon parado — B2) |
+| `python -m pytest -m "not integration"` | ✅ 43 passed |
+| `python -m pytest -m integration` (RUN_BQ_INTEGRATION=1) | ✅ 2 passed |
+| `python -m pytest --cov=src` | ✅ cobertura 70% |
+| `docker compose config --quiet` | ✅ válido |
+| `python -m pip check` | ✅ sem conflitos |
 
-## Testes
+## Tabelas (BigQuery)
 
-- 40 testes locais (unit + contracts + e2e) verdes.
-- 2 testes de integração BigQuery **pulados** (sem credenciais), por design.
-- Cobertura 70% no total; módulos críticos (quality, gold, silver, streaming
-  core) entre 80% e 100%. Módulos 0% são exclusivamente os de nuvem
-  (`bigquery_client`, `bronze/loader` de carga, `main`), não exercitáveis offline.
+- **Bronze (7):** municipio, uf, meta_brasil, meta_uf, meta_municipio,
+  indicador_alfabetizacao, aluno.
+- **Silver (7):** idem.
+- **Gold (5):** indicador_municipio_ano, meta_vs_resultado, evolucao_temporal,
+  resumo_uf, ml_features_municipio.
+- **Audit (2):** pipeline_runs, quality_results (streaming_metrics local).
 
-## Tabelas
+## Contagens
 
-- **Offline materializadas (Parquet):** Bronze `uf`, Silver `uf` e produtos Gold
-  quando há indicador. Município e demais dependem do BigQuery.
-- **BigQuery:** não validado neste ambiente (B1).
+| Entidade | Bronze | Silver | Gold |
+| --- | ---: | ---: | ---: |
+| municipio | 5.571 | 5.571 | — |
+| uf | 27 | 27 | — |
+| meta_brasil | 3 | 3 | — |
+| meta_uf | 79 | 79 | — |
+| meta_municipio | 10.704 | 10.704 | — |
+| indicador_alfabetizacao | 10.896 | 10.896 | indicador_municipio_ano 10.896 |
+| aluno | 100.000 | 100.000 | — |
+| resumo_uf | — | — | 25 |
 
-## Contagens (entidade UF, execução offline)
+Invariantes (`bronze = válidos + inválidos`, `válidos = silver`) OK; 0 inválidos
+(dados oficiais limpos).
 
-`bronze = 27`, `válidos = 27`, `inválidos = 0`, `silver = 27`. Invariantes OK.
+## Resultados analíticos
 
-## Arquivos gerados (locais, fora do Git)
-
-`data/bronze/`, `data/silver/`, `data/audit/` (relatórios + JSONL). Nenhum é
-versionado (ver `.gitignore`).
+`status_meta`: NAO_ATINGIDA 7.734 · ATINGIDA 2.920 · SEM_META 242 (total 10.896).
+Top UF por média: CE 90,14% · GO 76,44% · ES 75,85% · PR 74,95% · MG 68,96%.
+Integridade: 0 órfãos, 100% match município↔UF, 242 resultados sem meta.
 
 ## Streaming
 
-Lógica (validação, deduplicação, microbatch, quarentena) validada por 9 testes.
-Execução ao vivo requer Docker (B2).
+Sessão 1: 20 consumidos / 20 válidos / latência 10,27s / 1 microbatch.
+Sessão 2 (borda): 6 / 2 válidos / 3 inválidos / 1 duplicado / 4 na quarentena.
 
-## Problemas conhecidos e limitações
+## Testes / Cobertura / Lint
 
-- B1 (BigQuery) e B2 (Docker) — ver `docs/blockers.md`.
-- Fontes educacionais não validadas — ver `docs/source_limitations.md`.
+43 unitários + 2 integração (BQ) verdes; cobertura 70% (módulos críticos
+80–100%); Ruff limpo; `pip check` ok; compose válido.
 
-## Itens concluídos
+## CI (GitHub Actions)
 
-Fases 0–16 implementadas: qualidade, Silver, framework Batch, integração, Gold,
-streaming, CLI, observabilidade, FinOps, segurança, testes, CI, Docker e
-documentação.
+Workflow `CI` (`.github/workflows/ci.yml`): Ruff + pytest sem BigQuery +
+cobertura + validação YAML + `docker compose config`. Status confirmado após
+push/PR (ver seção de PRs no `docs/pull_request_guide.md`).
 
-## Itens opcionais / pendentes de ação humana
+## Anonimização / LGPD
 
-- Autenticar o BigQuery e habilitar as fontes educacionais reais.
-- Subir o Docker e executar o streaming ao vivo.
-- Materializar as tabelas em nuvem e gravar o vídeo.
+`id_aluno` → hash SHA-256 na Silver; verificado ausência de PII; nenhum dado
+pessoal na Gold.
+
+## Limitações e pendências
+
+- `aluno` como amostra anonimizada (L2); `resumo_uf` 25 UFs (L3); 242 sem meta
+  (L4). Ver `docs/source_limitations.md`.
+- **Pendências humanas:** revisar/mesclar PRs; gravar e publicar o vídeo.
+
+## Status
+
+**PRONTO PARA ENTREGA** (execução real validada em nuvem e streaming ao vivo;
+resta a gravação do vídeo e a mesclagem dos PRs).

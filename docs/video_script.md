@@ -43,6 +43,5 @@ linha.
 - Como a Gold habilita predição/classificação (`ml_features_municipio`).
 - Encerramento: governança, testes, CI e documentação completa.
 
-> Observação honesta a mencionar: no ambiente de gravação, BigQuery e Docker
-> podem exigir autenticação/daemon; o fluxo offline (UF) demonstra a pipeline
-> ponta a ponta.
+> O pipeline foi executado de ponta a ponta no BigQuery e o streaming ao vivo
+> com Redpanda; use os comandos de `docs/video_recording_commands.md`.
