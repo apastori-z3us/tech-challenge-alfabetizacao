@@ -51,3 +51,18 @@ dashboards, estatística e inteligência artificial.
 ## Autora
 
 Ana Beatriz Pastori dos Santos — RM 372884.
+
+## Primeiro fluxo funcional
+
+Foi implementado o primeiro pipeline Batch do projeto:
+
+```text
+Base dos Dados
+      ↓
+Extração com Python
+      ↓
+Parquet local
+      ↓
+Camada Bronze
+      ↓
+BigQuery Sandbox

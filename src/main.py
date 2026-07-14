@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from src.batch.extract import extract_municipios_to_bronze
+from src.bronze.loader import load_municipios_to_bigquery
 from src.common.bigquery_client import create_bigquery_client
 from src.common.logger import configure_logger
 from src.common.settings import load_settings
 
 
 def create_local_directories() -> None:
-    """Garante que as pastas de dados locais existam."""
+    """Garante que todas as pastas locais necessárias existam."""
+
     settings = load_settings()
 
     directories = [
@@ -19,51 +22,94 @@ def create_local_directories() -> None:
     ]
 
     for directory in directories:
-        directory.mkdir(parents=True, exist_ok=True)
+        directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
 
-def test_bigquery_connection() -> None:
-    """Executa uma consulta simples para validar o BigQuery."""
+def run_municipio_bronze_pipeline() -> None:
+    """
+    Executa o primeiro fluxo funcional:
+
+    Base dos Dados -> Parquet local -> Bronze BigQuery.
+    """
+
     settings = load_settings()
-    logger = configure_logger(level=settings.log_level)
+
+    logger = configure_logger(
+        name="municipio_pipeline",
+        level=settings.log_level,
+    )
+
+    logger.info(
+        "Iniciando pipeline de municípios."
+    )
+
+    logger.info(
+        "Projeto Google Cloud: %s",
+        settings.google_cloud_project,
+    )
+
+    create_local_directories()
 
     client = create_bigquery_client(settings)
 
-    query = """
-        SELECT
-            CURRENT_DATE() AS data_atual,
-            'CONEXAO_OK' AS status
-    """
+    extraction_result = extract_municipios_to_bronze(
+        client=client,
+        settings=settings,
+    )
 
-    result = list(client.query(query).result())
+    load_result = load_municipios_to_bigquery(
+        client=client,
+        settings=settings,
+        dataframe=extraction_result.dataframe,
+    )
 
-    if not result:
-        raise RuntimeError("O BigQuery não retornou resultados.")
-
-    row = result[0]
+    if (
+        extraction_result.records_read
+        != load_result.records_loaded
+    ):
+        raise RuntimeError(
+            "A quantidade extraída é diferente da quantidade "
+            "carregada no BigQuery. "
+            f"Extraídos={extraction_result.records_read}, "
+            f"carregados={load_result.records_loaded}."
+        )
 
     logger.info(
-        "BigQuery conectado. Projeto=%s | Data=%s | Status=%s",
-        settings.google_cloud_project,
-        row["data_atual"],
-        row["status"],
+        "Pipeline finalizado com sucesso."
+    )
+
+    logger.info(
+        "Arquivo Parquet: %s",
+        extraction_result.output_path,
+    )
+
+    logger.info(
+        "Tabela BigQuery: %s",
+        load_result.table_id,
+    )
+
+    logger.info(
+        "Registros processados: %s",
+        load_result.records_loaded,
     )
 
 
 def main() -> None:
-    settings = load_settings()
-    logger = configure_logger(level=settings.log_level)
+    try:
+        run_municipio_bronze_pipeline()
+    except Exception:
+        logger = configure_logger(
+            name="municipio_pipeline",
+        )
 
-    logger.info("Iniciando estrutura do Tech Challenge.")
-    logger.info("Projeto Google Cloud: %s", settings.google_cloud_project)
-    logger.info("Ambiente: %s", settings.app_environment)
+        logger.exception(
+            "O pipeline foi encerrado com erro."
+        )
 
-    create_local_directories()
-    logger.info("Pastas locais verificadas.")
-
-    test_bigquery_connection()
-
-    logger.info("Estrutura inicial validada com sucesso.")
+        raise
 
 
 if __name__ == "__main__":
